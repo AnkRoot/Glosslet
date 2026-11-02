@@ -1,0 +1,13 @@
+{
+  "KPlugin": {
+    "Id": "glosslet",
+    "Name": "Glosslet",
+    "Description": "原生 Wayland 划词快捷键与鼠标定位",
+    "Version": "0.3.0-alpha.1",
+    "License": "GPL-3.0-only",
+    "EnabledByDefault": false
+  },
+  "KPackageStructure": "KWin/Script",
+  "X-Plasma-API": "javascript",
+  "X-Plasma-MainScript": "code/main.js"
+}

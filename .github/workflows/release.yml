@@ -1,0 +1,64 @@
+name: 发布实验版
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      package: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          path: target/package
+          merge-multiple: true
+      - name: 校验五种归档的实际架构、标识和无用户数据夹带
+        run: python release/package.py check
+      - name: 用真实发布归档生成 AUR 文件，不上传 AUR
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" -w /workspace archlinux:base-devel bash -eu -c '
+            pacman -Syu --noconfirm --needed python
+            useradd -m builder
+            chown -R builder target/package
+            su builder -c "python release/package.py aur"
+          '
+      - name: 生成完整校验和与发布说明
+        id: metadata
+        run: |
+          python - <<'PY'
+          import hashlib, os, tomllib
+          from pathlib import Path
+          package = tomllib.loads(Path('Cargo.toml').read_text())['package']
+          output = Path('target/package')
+          files = sorted([*output.glob('*.tar.gz'), *output.glob('*.zip')])
+          (output / 'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n' for path in files))
+          (output / 'RELEASE_NOTES.md').write_text('原生实验版：归档解压即可运行，配置仍在系统标准目录。\n\n平台支持以 README 的真实桌面验收为准；CI 原生构建不等于真实桌面验收。Windows/macOS 尚未完成签名。AUR 归档包含真实校验和及派生 .SRCINFO，尚未上传 AUR。\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('prerelease=' + str('-' in package['version']).lower() + '\n')
+          PY
+      - name: 发布二进制、插件、AUR 提交文件和校验和
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          body_path: target/package/RELEASE_NOTES.md
+          fail_on_unmatched_files: true
+          files: |
+            target/package/*.tar.gz
+            target/package/*.zip
+            target/package/SHA256SUMS.txt

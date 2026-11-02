@@ -1,0 +1,10 @@
+{
+  "uuid": "glosslet@ankroot",
+  "name": "Glosslet",
+  "description": "低干扰划词翻译的原生 Wayland 桌面接入",
+  "url": "https://github.com/AnkRoot/Glosslet",
+  "shell-version": [
+    "51"
+  ],
+  "version": 1
+}

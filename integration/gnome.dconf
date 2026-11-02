@@ -1,0 +1,8 @@
+# 由 integration/desktops.json 生成；只编辑结构定义，不手改产物。
+# 原生 Wayland 必须显式安装并启用 Glosslet Shell 扩展；本片段仅提供快捷键槽位，不提供扩展能力。手工追加父 custom-keybindings 列表，不覆盖已有列表；常驻启动见 autostart.desktop。
+# 程序须能由 PATH 找到；不会自动写入用户桌面配置。
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/glosslet/]
+name='Glosslet — 明确查词'
+binding='<Super><Shift>g'
+command='glosslet lookup'

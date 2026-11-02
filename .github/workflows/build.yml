@@ -1,0 +1,120 @@
+name: 原生验证与构建
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            rustflags: ''
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            rustflags: ''
+          - platform: windows-x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            rustflags: '-C target-feature=+crt-static'
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            rustflags: ''
+          - platform: macos-aarch64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            rustflags: ''
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux 绘制、公开测试与集成检查依赖
+        if: startsWith(matrix.platform, 'linux-')
+        run: just install-deps-debian
+      - name: 验证真实构建主机、标签与产品版本
+        shell: bash
+        env:
+          EXPECTED_HOST: ${{ matrix.target }}
+        run: |
+          python - <<'PY'
+          import os, subprocess, tomllib
+          from pathlib import Path
+          package = tomllib.loads(Path('Cargo.toml').read_text())['package']
+          host = subprocess.check_output(['rustc', '-vV'], text=True)
+          assert 'host: ' + os.environ['EXPECTED_HOST'] in host
+          ref = os.environ['GITHUB_REF']
+          if ref.startswith('refs/tags/'):
+              assert ref == 'refs/tags/v' + package['version'], '标签必须与 Cargo 版本一致'
+          PY
+      - name: 全部源文件格式与功能依赖方向
+        run: |
+          python tests/acceptance.py fmt --check
+          python tests/acceptance.py architecture
+          just --fmt --check
+      - name: 严格静态检查
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: 无真实选区、无在线翻译的 Rust 与归档测试
+        run: |
+          cargo test --all-targets --locked
+          python -m unittest discover -s tests -p "*_test.py"
+      - name: 原生 Release 构建
+        run: cargo build --release --locked
+      - name: 集成结构、JavaScript、Lua 和 Desktop Entry
+        if: startsWith(matrix.platform, 'linux-')
+        run: just check-integration
+      - name: 真实程序的自有 Xvfb 验收，不连接用户桌面
+        if: startsWith(matrix.platform, 'linux-')
+        run: python tests/acceptance.py runtime
+      - name: 保存公开验收资源数据
+        if: always() && startsWith(matrix.platform, 'linux-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.platform }}
+          path: target/acceptance/
+          if-no-files-found: ignore
+      - name: 打包可直接运行的原生归档
+        if: inputs.package
+        run: python release/package.py portable ${{ matrix.platform }}
+      - name: 保存归档
+        if: inputs.package
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}
+          path: |
+            target/package/*.tar.gz
+            target/package/*.zip
+          if-no-files-found: error
+
+  msrv:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.89.0
+      - name: 最低 Rust 版本编译检查
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxkbcommon-dev
+          cargo check --all-targets --locked

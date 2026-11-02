@@ -1,0 +1,99 @@
+{
+  "shortcut": {
+    "modifiers": ["Super", "Shift"],
+    "key": "G"
+  },
+  "desktops": [
+    {
+      "name": "niri",
+      "file": "niri.kdl",
+      "comment": "//",
+      "note": "原生 alpha 接入；已通过受控 GTK 公开 hello 查词与粘贴，未完成浏览器、终端、编辑器及多屏矩阵验收。手工合并，禁止覆盖整个配置或重复创建 binds 块。",
+      "template": "spawn-at-startup \"$binary\"\n\n// 原生面板是 Overlay 浮动覆盖层，不使用普通窗口的 open-floating。\nlayer-rule {\n    match namespace=$identity_pattern\n    opacity 1.0\n    shadow { off; }\n    background-effect { blur false; }\n}\n\nbinds {\n    $binding repeat=false { spawn \"$binary\" \"lookup\"; }\n}\n"
+    },
+    {
+      "name": "hyprland",
+      "file": "hyprland.lua",
+      "comment": "--",
+      "note": "面向当前 Hyprland 0.57 Lua API；原生 IPC 已接入但未经真机验收。不转换旧 hyprlang 配置。手工合并，不覆盖整个配置。",
+      "template": "-- 原生面板是 Overlay 浮动覆盖层，不使用普通窗口的 float/pin 规则。\nhl.layer_rule({\n    match = { namespace = $identity_pattern },\n    no_anim = true,\n    blur = false,\n    blur_popups = false,\n    dim_around = false,\n    above_lock = 0,\n})\n\nhl.on(\"hyprland.start\", function()\n    hl.exec_cmd(\"$binary\")\nend)\n\nhl.bind(\"$binding\", hl.dsp.exec_cmd(\"$lookup\"), {\n    repeating = false,\n    description = \"$product — 明确查词\",\n})\n"
+    },
+    {
+      "name": "sway",
+      "file": "sway.conf",
+      "comment": "#",
+      "note": "原生 IPC 已接入但未经真机验收；还要求 ext-data-control-v1、layer-shell v4+ 和 viewporter。手工合并，不修改其他 binds 或输入规则。",
+      "template": "# 原生面板由应用创建为 Overlay 浮动覆盖层，不占平铺布局。\n# for_window 的 floating 规则不能匹配 layer-shell，不添加无效的 app_id 规则。\nexec $binary\nbindsym --no-repeat $binding exec $lookup\n"
+    },
+    {
+      "name": "i3",
+      "file": "i3.conf",
+      "comment": "#",
+      "note": "原生 X11 实验接入，尚待真实 i3 验收。面板是应用创建的不参与平铺的无边框覆盖窗口；只合并启动和快捷键，不添加无效的 floating/sticky 规则。",
+      "template": "exec --no-startup-id $binary\nbindsym --release $binding exec --no-startup-id $lookup\n"
+    },
+    {
+      "name": "gnome",
+      "file": "gnome.dconf",
+      "comment": "#",
+      "note": "原生 Wayland 必须显式安装并启用 Glosslet Shell 扩展；本片段仅提供快捷键槽位，不提供扩展能力。手工追加父 custom-keybindings 列表，不覆盖已有列表；常驻启动见 autostart.desktop。",
+      "template": "[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$binary/]\nname='$product — 明确查词'\nbinding='$binding'\ncommand='$lookup'\n"
+    },
+    {
+      "name": "kde",
+      "file": "kde.js",
+      "comment": "//",
+      "note": "原生 KWin 脚本，需要显式打包、安装并启用；快捷键由脚本注册，不再重复注册 desktop 文件动作。要求 ext-data-control、layer-shell v4+ 和 viewporter；未经真机验收。",
+      "template": "const lookupShortcut = \"$binding\";\n\n",
+      "source": "src/lookup/wayland/desktop/kde.js"
+    },
+    {
+      "name": "xdg-autostart",
+      "file": "autostart.desktop",
+      "comment": "#",
+      "note": "仅常驻启动，不提供取词或快捷键能力。GNOME/KDE 原生 Wayland 另需显式启用对应桌面插件；不要与桌面专用自启动重复启用。由用户手工安装，本程序不会修改自启动目录。",
+      "template": "[Desktop Entry]\nType=Application\nName=$product\nComment=低干扰划词翻译\nExec=$binary\nTerminal=false\nCategories=Utility;\n"
+    }
+  ],
+  "plugins": [
+    {
+      "name": "gnome",
+      "file": "gnome-extension.json",
+      "archive": "glosslet@ankroot.shell-extension.zip",
+      "metadata": {
+        "uuid": "glosslet@ankroot",
+        "name": "$product",
+        "description": "低干扰划词翻译的原生 Wayland 桌面接入",
+        "url": "$repository",
+        "shell-version": [
+          "51"
+        ],
+        "version": 1
+      },
+      "files": {
+        "extension.js": "src/lookup/gnome/extension.js"
+      }
+    },
+    {
+      "name": "kde",
+      "file": "kde-metadata.json",
+      "archive": "glosslet.kwinscript",
+      "metadata": {
+        "KPlugin": {
+          "Id": "$binary",
+          "Name": "$product",
+          "Description": "原生 Wayland 划词快捷键与鼠标定位",
+          "Version": "$version",
+          "License": "GPL-3.0-only",
+          "EnabledByDefault": false
+        },
+        "KPackageStructure": "KWin/Script",
+        "X-Plasma-API": "javascript",
+        "X-Plasma-MainScript": "code/main.js"
+      },
+      "files": {
+        "contents/code/main.js": "integration/kde.js"
+      }
+    }
+  ]
+}

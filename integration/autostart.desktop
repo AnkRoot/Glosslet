@@ -1,0 +1,11 @@
+# 由 integration/desktops.json 生成；只编辑结构定义，不手改产物。
+# 仅常驻启动，不提供取词或快捷键能力。GNOME/KDE 原生 Wayland 另需显式启用对应桌面插件；不要与桌面专用自启动重复启用。由用户手工安装，本程序不会修改自启动目录。
+# 程序须能由 PATH 找到；不会自动写入用户桌面配置。
+
+[Desktop Entry]
+Type=Application
+Name=Glosslet
+Comment=低干扰划词翻译
+Exec=glosslet
+Terminal=false
+Categories=Utility;

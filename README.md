@@ -56,10 +56,10 @@ just package-aur
 | Linux · X11 | 自有 Xvfb：真实程序启动、单实例、CLI、公开面板、主题按钮、幂等固定、损坏拒绝、重启及 12 次面板资源周期 | 真实 i3／X11 桌面、选区归属与粘贴、激活／拖动／关闭体验 |
 | Linux · Hyprland、Sway | 原生 IPC、协议和过期事件的本地测试；不是实机支持声明 | 实际桌面完整验收 |
 | Linux · GNOME Shell 51、KDE/KWin | 原生集成及插件打包、语法和接线检查 | 安装／启用／重启／卸载、实际选区与交互 |
-| Windows | UI Automation、原生窗口与组合键；跨目标严格 Clippy | 真机权限、选区、窗口生命周期及输入交互 |
-| macOS · Intel／Apple Silicon | Accessibility、AppKit 窗口与组合键；两种架构跨目标严格 Clippy | 两种架构真机权限、选区及交互 |
+| Windows | UI Automation、原生窗口与组合键；原生 CI 的严格 Clippy、单元测试与 Release 构建 | 真机权限、选区、窗口生命周期及输入交互 |
+| macOS · Intel／Apple Silicon | Accessibility、AppKit 窗口与组合键；两种架构原生 CI 的严格 Clippy、单元测试与 Release 构建 | 两种架构真机权限、选区及交互 |
 
-重构前的受控公开 `hello` 取词／粘贴闭环不能自动当作新版本完整验收。CI 定义了五种原生构建及归档检查；只有远程执行完成后才有该次构建结果，当前不声称这些发布归档已产生。
+重构前的受控公开 `hello` 取词／粘贴闭环不能自动当作新版本完整验收。[首次通过的原生 CI](https://github.com/AnkRoot/Glosslet/actions/runs/41455779449) 已完成 Linux x86_64／aarch64、Windows x86_64、macOS Intel／Apple Silicon 的格式、严格 Clippy、适用单元测试与 Release 构建；最低 Rust 1.89 检查和两种 Linux 的自有 Xvfb 验收也已通过。发行标签的真实归档校验与 AUR 生成流程尚未执行，不声称五种公开发布归档已经产生。
 
 Wayland PRIMARY 不提供选择所有者窗口身份，焦点和焦点 epoch 只能拒绝过期工作，**不能证明选区归属**。Niri／Sway 目前没有采用原生指针坐标接口，保留一次性的透明定位采样：它可能短暂截获点击或滚轮，不承诺无损输入。不会在失败后切换桌面、调用 XWayland／X11、模拟 Ctrl+C、读取普通剪贴板、OCR 或扫描全局输入。
 

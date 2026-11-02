@@ -19,7 +19,7 @@ cargo build --release --locked
 ./target/release/glosslet quit
 ```
 
-不需要 `cargo install`、管理员权限或常驻安装服务。Linux 运行时需要系统的 xkbcommon 与可用字体；X11 后端另需 X11 库。桌面接入还需要对应协议、IPC 或插件，详见下文。Windows/macOS 原生归档尚未完成签名；macOS 还需要用户授予辅助功能权限。
+不需要 `cargo install`、管理员权限或常驻安装服务。Linux 运行时需要系统的 xkbcommon 与可用字体；X11 后端另需 X11、xcb 和 xkbcommon-x11 运行库。桌面接入还需要对应协议、IPC 或插件，详见下文。Windows/macOS 原生归档尚未完成签名；macOS 还需要用户授予辅助功能权限。
 
 如希望从 PATH 启动，可自行安装：
 
@@ -224,7 +224,7 @@ just install-deps-debian  # 只有此显式入口需要管理员权限
 just verify
 ```
 
-Arch 开发环境可自行安装 `rust just python pkgconf libxkbcommon noto-fonts-cjk lua desktop-file-utils nodejs xorg-server-xvfb libxtst`。验证不安装程序、不写实际用户设置、不读取真实选区／剪贴板、不请求在线翻译：
+Arch 开发环境可自行安装 `rust just python pkgconf libxkbcommon libxkbcommon-x11 noto-fonts-cjk lua desktop-file-utils nodejs xorg-server-xvfb libxtst`。验证不安装程序、不写实际用户设置、不读取真实选区／剪贴板、不请求在线翻译：
 
 - 全部源码格式、严格 Clippy、功能入口／依赖方向、桌面生成物与 JavaScript／Lua／Desktop Entry 接线。
 - Rust 状态机、原文释放、快速重触发、重试归属、过期帧／输入、私有文件、协议完整性／限长、认证及取消测试。

@@ -14,10 +14,10 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]
+PACKAGE = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["package"]
 NAME, VERSION, REPOSITORY = (PACKAGE[key] for key in ("name", "version", "repository"))
 PRODUCT = NAME[0].upper() + NAME[1:]
-DESKTOPS = json.loads((ROOT / "integration/desktops.json").read_text())
+DESKTOPS = json.loads((ROOT / "integration/desktops.json").read_text(encoding="utf-8"))
 PLATFORMS = ("linux-x86_64", "linux-aarch64", "windows-x86_64", "macos-x86_64", "macos-aarch64")
 
 
@@ -124,7 +124,7 @@ def aur(archives, output):
         f"pkgname={pkgname}", f"pkgver={pkgver}", "pkgrel=1",
         f"pkgdesc={shlex.quote(PACKAGE['description'])}", "arch=('x86_64' 'aarch64')",
         f"url={shlex.quote(REPOSITORY)}", f"license=({shlex.quote(PACKAGE['license'])})",
-        "depends=('glibc' 'gcc-libs' 'libxkbcommon' 'libx11' 'libxcb')",
+        "depends=('glibc' 'gcc-libs' 'libxkbcommon' 'libxkbcommon-x11' 'libx11' 'libxcb')",
         "optdepends=('noto-fonts-cjk: 中文和日文字体')",
         f"provides=('{NAME}')", f"conflicts=('{NAME}')", "options=('!strip')", "",
         f"_release={shlex.quote(VERSION)}",
@@ -144,10 +144,10 @@ def aur(archives, output):
         f'        install -Dm644 "$file" "$pkgdir/usr/share/{NAME}/integration/${{file##*/}}"',
         "    done", "}", "",
     ])
-    (output / "PKGBUILD").write_text("\n".join(lines))
+    (output / "PKGBUILD").write_text("\n".join(lines), encoding="utf-8")
     # .SRCINFO 必须从真实 PKGBUILD 派生；缺少 makepkg 直接失败，不手工维护第二份结构。
-    info = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=output, text=True)
-    (output / ".SRCINFO").write_text(info)
+    info = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=output, encoding="utf-8")
+    (output / ".SRCINFO").write_text(info, encoding="utf-8")
     package = archives / f"{NAME}-{VERSION}-aur.tar.gz"
     tar(package, {f"{pkgname}/{name}": ((output / name).read_bytes(), 0o644) for name in ("PKGBUILD", ".SRCINFO")})
     print(package)

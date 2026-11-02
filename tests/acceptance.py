@@ -20,7 +20,7 @@ import time
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]
+PACKAGE = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["package"]
 NAME = PACKAGE["name"]
 DEFAULT = {"service": "mirror", "direction": "chinese_english", "theme": "dark"}
 
@@ -34,19 +34,19 @@ def fmt(check):
 
 
 def architecture():
-    main = (ROOT / "src/main.rs").read_text()
+    main = (ROOT / "src/main.rs").read_text(encoding="utf-8")
     declaration = re.search(r"features!\s*\{([^}]+)\}", main).group(1)
     features = re.findall(r"(\w+)\s*=>\s*(\w+)", declaration)
     names = {name for name, _ in features}
     assert len(names) == len(features), "重复功能声明"
     for name in names:
         entry = ROOT / "src" / name / "mod.rs"
-        assert entry.is_file() and "fn register(" in entry.read_text(), f"缺少单一入口：{name}"
+        assert entry.is_file() and "fn register(" in entry.read_text(encoding="utf-8"), f"缺少单一入口：{name}"
     for path in (ROOT / "src").rglob("*.rs"):
         owner = path.relative_to(ROOT / "src").parts[0]
-        for target in re.findall(r"crate::(\w+)::", path.read_text()):
+        for target in re.findall(r"crate::(\w+)::", path.read_text(encoding="utf-8")):
             assert target not in names or target == owner, f"跨功能实现依赖：{path} → {target}"
-    core = (ROOT / "src/core.rs").read_text()
+    core = (ROOT / "src/core.rs").read_text(encoding="utf-8")
     assert not any(re.search(rf"\b{name}::", core) for name in names), "core 不能反向导入功能"
     print("功能入口、依赖方向与无跨功能深路径导入：通过")
 

@@ -19,11 +19,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: build-*
           path: target/package
@@ -44,7 +44,7 @@ jobs:
           python - <<'PY'
           import hashlib, os, tomllib
           from pathlib import Path
-          package = tomllib.loads(Path('Cargo.toml').read_text())['package']
+          package = tomllib.loads(Path('Cargo.toml').read_text(encoding='utf-8'))['package']
           output = Path('target/package')
           files = sorted([*output.glob('*.tar.gz'), *output.glob('*.zip')])
           (output / 'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n' for path in files))

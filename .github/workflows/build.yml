@@ -39,9 +39,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
+      PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - uses: dtolnay/rust-toolchain@stable
@@ -62,8 +63,8 @@ jobs:
           python - <<'PY'
           import os, subprocess, tomllib
           from pathlib import Path
-          package = tomllib.loads(Path('Cargo.toml').read_text())['package']
-          host = subprocess.check_output(['rustc', '-vV'], text=True)
+          package = tomllib.loads(Path('Cargo.toml').read_text(encoding='utf-8'))['package']
+          host = subprocess.check_output(['rustc', '-vV'], encoding='utf-8')
           assert 'host: ' + os.environ['EXPECTED_HOST'] in host
           ref = os.environ['GITHUB_REF']
           if ref.startswith('refs/tags/'):
@@ -71,15 +72,15 @@ jobs:
           PY
       - name: 全部源文件格式与功能依赖方向
         run: |
-          python tests/acceptance.py fmt --check
-          python tests/acceptance.py architecture
+          python -X warn_default_encoding -W error::EncodingWarning tests/acceptance.py fmt --check
+          python -X warn_default_encoding -W error::EncodingWarning tests/acceptance.py architecture
           just --fmt --check
       - name: 严格静态检查
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: 无真实选区、无在线翻译的 Rust 与归档测试
         run: |
           cargo test --all-targets --locked
-          python -m unittest discover -s tests -p "*_test.py"
+          python -X warn_default_encoding -W error::EncodingWarning -m unittest discover -s tests -p "*_test.py"
       - name: 原生 Release 构建
         run: cargo build --release --locked
       - name: 集成结构、JavaScript、Lua 和 Desktop Entry
@@ -90,7 +91,7 @@ jobs:
         run: python tests/acceptance.py runtime
       - name: 保存公开验收资源数据
         if: always() && startsWith(matrix.platform, 'linux-')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: acceptance-${{ matrix.platform }}
           path: target/acceptance/
@@ -100,7 +101,7 @@ jobs:
         run: python release/package.py portable ${{ matrix.platform }}
       - name: 保存归档
         if: inputs.package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-${{ matrix.platform }}
           path: |
@@ -111,7 +112,7 @@ jobs:
   msrv:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.89.0
       - name: 最低 Rust 版本编译检查
         run: |

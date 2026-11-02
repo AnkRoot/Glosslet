@@ -64,7 +64,7 @@ integration mode="check":
     if mode not in {"check", "write"}:
         raise SystemExit("模式只能为 check 或 write")
     root = Path("integration")
-    data = json.loads((root / "desktops.json").read_text())
+    data = json.loads((root / "desktops.json").read_text(encoding="utf-8"))
     assert set(data) == {"shortcut", "desktops", "plugins"}, "集成 schema 字段无效"
     shortcut = data["shortcut"]
     assert set(shortcut) == {"modifiers", "key"}
@@ -73,7 +73,7 @@ integration mode="check":
     assert set(modifiers) <= {"Super", "Control", "Alt", "Shift"}
     assert set(modifiers) & {"Super", "Control", "Alt"}, "必须是明确组合键"
     assert isinstance(key, str) and len(key) == 1 and key.isascii() and key.isalpha()
-    package = tomllib.loads(Path("Cargo.toml").read_text())["package"]
+    package = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))["package"]
     binary = package["name"]
     identity_pattern = json.dumps("^" + re.escape(binary) + "$")
 
@@ -112,11 +112,11 @@ integration mode="check":
         banner += comment + " 程序须能由 PATH 找到；不会自动写入用户桌面配置。\n\n"
         content = banner + Template(desktop["template"]).substitute(binary=binary, product=binary.capitalize(), lookup=binary + " lookup", binding=binding(name), identity_pattern=identity_pattern)
         if "source" in desktop:
-            content += Path(desktop["source"]).read_text()
+            content += Path(desktop["source"]).read_text(encoding="utf-8")
         path = root / filename
         if mode == "write":
-            path.write_text(content)
-        elif not path.exists() or path.read_text() != content:
+            path.write_text(content, encoding="utf-8")
+        elif not path.exists() or path.read_text(encoding="utf-8") != content:
             raise SystemExit("集成产物缺失或偏离结构定义：" + filename)
     def substitute(value):
         if isinstance(value, str):
@@ -135,8 +135,8 @@ integration mode="check":
         content = json.dumps(substitute(plugin["metadata"]), ensure_ascii=False, indent=2) + "\n"
         path = root / filename
         if mode == "write":
-            path.write_text(content)
-        elif not path.exists() or path.read_text() != content:
+            path.write_text(content, encoding="utf-8")
+        elif not path.exists() or path.read_text(encoding="utf-8") != content:
             raise SystemExit("插件元数据偏离结构定义：" + filename)
     unexpected = {path.name for path in root.iterdir()} - files - {"desktops.json"}
     assert not unexpected, "integration/ 存在非平铺或废弃路径：" + str(unexpected)
@@ -153,14 +153,14 @@ check-integration: (integration "check")
     import tomllib
 
     subprocess.run(["desktop-file-validate", "integration/autostart.desktop"], check=True)
-    subprocess.run(["node", "--input-type=module", "--check"], input=Path("src/lookup/gnome/extension.js").read_text(), text=True, check=True)
+    subprocess.run(["node", "--input-type=module", "--check"], input=Path("src/lookup/gnome/extension.js").read_text(encoding="utf-8"), encoding="utf-8", check=True)
     subprocess.run(["node", "--check", "integration/kde.js"], check=True)
     config = configparser.ConfigParser(interpolation=None)
     config.read("integration/gnome.dconf")
     assert len(config.sections()) == 1
     for value in config[config.sections()[0]].values():
         assert isinstance(ast.literal_eval(value), str)
-    binary = tomllib.loads(Path("Cargo.toml").read_text())["package"]["name"]
+    binary = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))["package"]["name"]
     subprocess.run(["lua", "-", "^" + re.escape(binary) + "$"], input=r'''
     local startup, bound, registered, layer
     local hl = {
@@ -243,7 +243,7 @@ install:
 [linux]
 install-deps-debian:
     sudo apt-get update
-    sudo apt-get install -y pkg-config libxkbcommon-dev fonts-noto-cjk lua5.4 desktop-file-utils nodejs xvfb libx11-6 libxtst6
+    sudo apt-get install -y pkg-config libxkbcommon-dev libxkbcommon-x11-0 fonts-noto-cjk lua5.4 desktop-file-utils nodejs xvfb libx11-6 libxtst6
 
 # 原生 Niri 面板烟测：公开文案，不读选区、不联网，不属于 verify；拒绝已有实例。
 [linux]
@@ -259,7 +259,7 @@ smoke-wayland: build-release
     import time
     import tomllib
 
-    app_id = tomllib.loads(Path("Cargo.toml").read_text())["package"]["name"]
+    app_id = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))["package"]["name"]
     env = os.environ.copy()
     env.pop("DISPLAY", None)
     env["WAYLAND_DEBUG"] = "client"

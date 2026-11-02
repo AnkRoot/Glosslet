@@ -68,13 +68,14 @@ class ReleaseTests(unittest.TestCase):
                 packaging.portable("linux-" + arch, binary, output)
             aur = output / "aur"
             package = packaging.aur(output, aur)
-            text = (aur / "PKGBUILD").read_text()
+            text = (aur / "PKGBUILD").read_text(encoding="utf-8")
             self.assertNotIn("SKIP", text)
             for arch in ("x86_64", "aarch64"):
                 digest = hashlib.sha256((output / packaging.archive_name("linux-" + arch)).read_bytes()).hexdigest()
                 self.assertIn(digest, text)
-            info = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=aur, text=True)
-            self.assertEqual((aur / ".SRCINFO").read_text(), info)
+            info = subprocess.check_output(["makepkg", "--printsrcinfo"], cwd=aur, encoding="utf-8")
+            self.assertEqual((aur / ".SRCINFO").read_text(encoding="utf-8"), info)
+            self.assertIn("depends = libxkbcommon-x11", info)
             self.assertNotRegex(info, r"\btran\b")
             with tarfile.open(package) as archive:
                 self.assertEqual(set(archive.getnames()), {f"{packaging.NAME}-bin/PKGBUILD", f"{packaging.NAME}-bin/.SRCINFO"})

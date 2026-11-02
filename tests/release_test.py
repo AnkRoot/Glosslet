@@ -52,7 +52,7 @@ class ReleaseTests(unittest.TestCase):
     def setUp(self):
         scratch = tempfile.TemporaryDirectory(prefix=packaging.NAME + "-release-test-")
         self.addCleanup(scratch.cleanup)
-        self.scratch = Path(scratch.name)
+        self.scratch = Path(scratch.name).resolve()
         self.output = self.scratch / "archives"
         self.output.mkdir()
 

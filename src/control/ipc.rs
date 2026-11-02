@@ -334,10 +334,14 @@ impl ControlServer for Server {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use tokio::io::AsyncWriteExt;
+
+    static ENDPOINT_ID: AtomicU64 = AtomicU64::new(0);
 
     struct Endpoint {
         directory: PathBuf,
+        path: PathBuf,
         listener: Option<Listener>,
     }
     impl Endpoint {
@@ -346,34 +350,51 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let directory = std::env::temp_dir().join(format!(
-                "glosslet-control-test-{}-{nonce}",
-                std::process::id()
-            ));
+            let id = ENDPOINT_ID.fetch_add(1, Ordering::Relaxed);
+            let directory =
+                std::env::temp_dir().join(format!("glosslet-{}-{nonce}-{id}", std::process::id()));
             std::fs::create_dir(&directory).unwrap();
-            let path = directory.join("socket");
+            let path = directory.join(format!("ipc-{}-{id}", std::process::id()));
             let listener = ListenerOptions::new()
                 .name(name(&path).unwrap())
                 .create_tokio()
                 .unwrap();
             Self {
                 directory,
+                path,
                 listener: Some(listener),
             }
         }
         async fn pair(&self) -> (Stream, Stream) {
-            let path = self.directory.join("socket");
             let (accepted, connected) = tokio::join!(
                 self.listener.as_ref().unwrap().accept(),
-                Stream::connect(name(&path).unwrap())
+                Stream::connect(name(&self.path).unwrap())
             );
             (accepted.unwrap(), connected.unwrap())
         }
     }
     impl Drop for Endpoint {
         fn drop(&mut self) {
+            self.listener.take();
             let _ = std::fs::remove_dir_all(&self.directory);
         }
+    }
+
+    #[tokio::test]
+    async fn concurrent_test_endpoints_keep_their_own_frames() {
+        let first = Endpoint::new();
+        let second = Endpoint::new();
+        assert_ne!(first.path.file_name(), second.path.file_name());
+        tokio::time::timeout(TIMEOUT, async {
+            let (first_server, mut first_client) = first.pair().await;
+            let (second_server, mut second_client) = second.pair().await;
+            first_client.write_all(b"first\n").await.unwrap();
+            second_client.write_all(b"second\n").await.unwrap();
+            assert_eq!(frame(&first_server, MAX_BYTES).await.unwrap(), b"first\n");
+            assert_eq!(frame(&second_server, MAX_BYTES).await.unwrap(), b"second\n");
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -439,7 +460,7 @@ mod tests {
     #[tokio::test]
     async fn control_ack_is_application_reply_not_just_a_successful_write() {
         let mut endpoint = Endpoint::new();
-        let path = endpoint.directory.join("socket");
+        let path = endpoint.path.clone();
         let lock = OpenOptions::new()
             .read(true)
             .write(true)

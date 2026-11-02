@@ -156,7 +156,7 @@ check-integration: (integration "check")
     subprocess.run(["node", "--input-type=module", "--check"], input=Path("src/lookup/gnome/extension.js").read_text(encoding="utf-8"), encoding="utf-8", check=True)
     subprocess.run(["node", "--check", "integration/kde.js"], check=True)
     config = configparser.ConfigParser(interpolation=None)
-    config.read("integration/gnome.dconf")
+    config.read("integration/gnome.dconf", encoding="utf-8")
     assert len(config.sections()) == 1
     for value in config[config.sections()[0]].values():
         assert isinstance(ast.literal_eval(value), str)
@@ -191,7 +191,7 @@ check-integration: (integration "check")
     assert(layer and registered and startup == nil)
     registered()
     assert(type(startup) == "string" and bound == startup .. " lookup")
-    ''', text=True, check=True)
+    ''', encoding="utf-8", check=True)
     print("集成语法与接线检查通过；不代表各 compositor 真机验收。")
 
 # 只读检查所选原生后端的协议／接口，不读选区、不映射面板，可在已有实例下执行。

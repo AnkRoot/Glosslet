@@ -10,7 +10,7 @@ Glosslet 是一个低打扰的桌面划词翻译工具：256×100 的轻量置�
 
 “便携”指解压后直接运行，**不是把配置写在程序旁边**。配置仍放在系统标准目录；源码目录和二进制所在目录可以是任意位置。
 
-正式 Release 尚未发布。发布后，原生归档将由 [AnkRoot/Glosslet](https://github.com/AnkRoot/Glosslet) 的标签构建产生，包含程序、许可证、说明和构建信息；Linux 还包含桌面集成片段及插件包。当前可以在工作区直接运行：
+原生归档由标签构建产生，在 [GitHub Releases](https://github.com/AnkRoot/Glosslet/releases) 下载；是否已有该版本的公开资产，以页面为准。归档包含程序、许可证、说明和构建信息；Linux 还包含桌面集成片段及插件包。也可以在工作区直接运行：
 
 ```sh
 cargo build --release --locked
@@ -35,7 +35,7 @@ cargo install --path . --locked
 
 Release 流程会用两种 Linux 的**真实发布归档**计算 SHA-256，生成 `PKGBUILD`，再由 Arch `makepkg --printsrcinfo` 派生 `.SRCINFO`。不使用 `SKIP`，不手写第二份元数据，不自动上传 AUR。包只安装程序、许可证、本文及 `/usr/share/glosslet/integration/` 示例，不写用户配置或自动启用自启动。
 
-提交 AUR 还需要 AUR 账号、已登记的 SSH 公钥、有效公开下载地址、包名检查及本机 `makepkg` 验收。AUR 认证与 GitHub 认证相互独立。实际发布归档可用后，在 Arch 上：
+提交 AUR 还需要 AUR 账号、已登记的 SSH 公钥、有效公开下载地址、包名检查及本机 `makepkg` 验收。AUR 认证与 GitHub 认证相互独立。实际发布归档可用后，在同版本发行标签的源码中执行，确保归档内容与源定义一致；预发行版本使用 Arch 的预发行排序，不把 alpha 排在稳定版之后。Arch 上：
 
 ```sh
 # 把 Release 的两个 Linux 归档放入 target/package/ 后：
@@ -59,7 +59,7 @@ just package-aur
 | Windows | UI Automation、原生窗口与组合键；原生 CI 的严格 Clippy、单元测试与 Release 构建 | 真机权限、选区、窗口生命周期及输入交互 |
 | macOS · Intel／Apple Silicon | Accessibility、AppKit 窗口与组合键；两种架构原生 CI 的严格 Clippy、单元测试与 Release 构建 | 两种架构真机权限、选区及交互 |
 
-重构前的受控公开 `hello` 取词／粘贴闭环不能自动当作新版本完整验收。[首次通过的原生 CI](https://github.com/AnkRoot/Glosslet/actions/runs/41455779449) 已完成 Linux x86_64／aarch64、Windows x86_64、macOS Intel／Apple Silicon 的格式、严格 Clippy、适用单元测试与 Release 构建；最低 Rust 1.89 检查和两种 Linux 的自有 Xvfb 验收也已通过。发行标签的真实归档校验与 AUR 生成流程尚未执行，不声称五种公开发布归档已经产生。
+重构前的受控公开 `hello` 取词／粘贴闭环不能自动当作新版本完整验收。[首次通过的原生 CI](https://github.com/AnkRoot/Glosslet/actions/runs/41455779449) 已完成 Linux x86_64／aarch64、Windows x86_64、macOS Intel／Apple Silicon 的格式、严格 Clippy、适用单元测试与 Release 构建；最低 Rust 1.89 检查和两种 Linux 的自有 Xvfb 验收也已通过。当次发行归档与 AUR 提交文件以 Release 资产及发行 CI 结果为准，不能用源码验证替代归档验收，也不能用归档验收替代真机支持。
 
 Wayland PRIMARY 不提供选择所有者窗口身份，焦点和焦点 epoch 只能拒绝过期工作，**不能证明选区归属**。Niri／Sway 目前没有采用原生指针坐标接口，保留一次性的透明定位采样：它可能短暂截获点击或滚轮，不承诺无损输入。不会在失败后切换桌面、调用 XWayland／X11、模拟 Ctrl+C、读取普通剪贴板、OCR 或扫描全局输入。
 
@@ -230,7 +230,8 @@ Arch 开发环境可自行安装 `rust just python pkgconf libxkbcommon libxkbco
 - Rust 状态机、原文释放、快速重触发、重试归属、过期帧／输入、私有文件、协议完整性／限长、认证及取消测试。
 - HTTP 仅连接自有回环服务，验证编码、响应、限流、重定向拒绝、超长／慢响应及错误中不泄露原文。
 - 自有 Xvfb 运行真实 Release：单实例、CLI、公开面板主题按钮、固定／关闭、损坏不覆盖、失败不改运行值、重启、资源周期及不完整控制帧。
-- 合成程序头验证归档的**实际架构**而非只看文件名；插件资产及无用户数据夹带；Arch 上进一步用真实 makepkg 验证 AUR 校验和及派生 `.SRCINFO`。非 Arch 不冒充这项已完成。
+- 合成程序头验证可执行类型与**实际架构**，不只看文件名；归档精确资产清单、构建标识、来源内容、权限、链接拒绝与大小预算，包括 Python 优化模式下的失败校验。
+- 插件 ZIP 不依赖来源文件时间；发布清单与完整校验和由同一份声明派生，不漏掉 KWin 插件。Arch 上进一步用真实 makepkg 验证 AUR 校验和、预发行版本顺序及派生 `.SRCINFO`；非 Arch 不冒充这项已完成。
 
 可单独执行：
 
@@ -286,7 +287,7 @@ gh auth status
 
 不要在聊天中粘贴 Token。维护者推送前应核对登录身份和仓库远程；发行必须使用本仓库的标签，不向其他项目的 origin 推送。
 
-`.github/workflows/build.yml` 唯一定义五种原生构建矩阵，供验证与发布工作流复用。推送与 Cargo 版本一致的 `v<版本>` 标签后，先验证、构建、检查归档，再发布校验和及实验版资产；AUR 文件仅生成，不自动提交 AUR。签名、持续服务质量和真实桌面支持矩阵仍是发行前工作。
+`.github/workflows/build.yml` 唯一定义五种原生构建矩阵，供验证与发布工作流复用。推送与 Cargo 版本一致的 `v<版本>` 标签后，先验证、构建、检查归档，再从桌面定义生成独立插件，并用非 root 的 Arch 容器生成 AUR 文件。`release/package.py metadata` 派生上传清单、完整 SHA-256 与发布说明，拒绝缺失或额外资产；AUR 文件仅生成，不自动提交 AUR。签名、持续服务质量和真实桌面支持矩阵仍是发行前工作。
 
 ---
 

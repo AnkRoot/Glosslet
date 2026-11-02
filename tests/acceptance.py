@@ -76,7 +76,7 @@ class PrivateDisplay:
     def __init__(self, scratch, executable):
         self.server = None
         self.connection = None
-        self.log = (scratch / "xvfb.log").open("w")
+        self.log = (scratch / "xvfb.log").open("w", encoding="utf-8")
         reader, writer = os.pipe()
         try:
             self.server = subprocess.Popen(
@@ -155,13 +155,13 @@ class PrivateDisplay:
 def metrics(pid):
     directory = Path("/proc") / str(pid)
     values = {}
-    for line in (directory / "smaps_rollup").read_text().splitlines():
+    for line in (directory / "smaps_rollup").read_text(encoding="utf-8").splitlines():
         if line.startswith(("Rss:", "Pss:")):
             key, value, _ = line.split()
             values[key[:-1].lower() + "_kib"] = int(value)
-    values["threads"] = sorted(path.joinpath("comm").read_text().strip() for path in (directory / "task").iterdir())
+    values["threads"] = sorted(path.joinpath("comm").read_text(encoding="utf-8").strip() for path in (directory / "task").iterdir())
     values["fds"] = len(list((directory / "fd").iterdir()))
-    fields = (directory / "stat").read_text().rsplit(")", 1)[1].split()
+    fields = (directory / "stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
     values["cpu_ticks"] = int(fields[11]) + int(fields[12])
     return values
 
@@ -183,7 +183,7 @@ def runtime(binary, xvfb, report):
         log_path = scratch / "app.log"
 
         def control(*args, check=True):
-            result = subprocess.run([str(binary), *args], env=environment, capture_output=True, text=True, timeout=5)
+            result = subprocess.run([str(binary), *args], env=environment, capture_output=True, encoding="utf-8", timeout=5)
             if check and result.returncode:
                 raise RuntimeError(result.stderr.strip())
             return result
@@ -195,13 +195,13 @@ def runtime(binary, xvfb, report):
             return json.loads(control("settings").stdout)
 
         def start():
-            with log_path.open("a") as log:
+            with log_path.open("a", encoding="utf-8") as log:
                 app = subprocess.Popen([str(binary)], env=environment, stdout=log, stderr=log)
             processes.append(app)
 
             def ready():
                 if app.poll() is not None:
-                    raise RuntimeError(log_path.read_text())
+                    raise RuntimeError(log_path.read_text(encoding="utf-8"))
                 return control("status", check=False).returncode == 0
 
             wait(ready, "常驻实例未启动")
@@ -241,8 +241,8 @@ def runtime(binary, xvfb, report):
             samples["panel_visible"] = metrics(app.pid)
             display.theme()
             wait(lambda: settings()["theme"] == "dark", "真实面板主题按钮未更新偏好")
-            assert json.loads(config.read_text()) == settings()
-            saved, expected = config.read_text(), settings()
+            assert json.loads(config.read_text(encoding="utf-8")) == settings()
+            saved, expected = config.read_text(encoding="utf-8"), settings()
             control("close")
             samples["after_close"] = metrics(app.pid)
             sockets = list(runtime_directory.glob(NAME + "-*.sock"))
@@ -255,20 +255,20 @@ def runtime(binary, xvfb, report):
                     stream.shutdown(socket.SHUT_WR)
                     assert not stream.recv(4096), "不完整或超长帧不能被接受"
                 assert "阶段：空闲" in status()
-            config.write_text("{")
+            config.write_text("{", encoding="utf-8")
             probe()
             display.theme()
             time.sleep(0.15)
             assert settings() == expected and "面板：显示中" in status()
             failure = control("set", "theme", "light", check=False)
             assert failure.returncode != 0 and "运行值未改变" in failure.stderr and "拒绝覆盖" in failure.stderr
-            assert config.read_text() == "{" and settings() == expected
+            assert config.read_text(encoding="utf-8") == "{" and settings() == expected
             control("quit")
             assert app.wait(timeout=5) == 0
             broken = control(check=False)
             assert broken.returncode != 0 and "无法加载设置" in broken.stderr
-            assert config.read_text() == "{"
-            config.write_text(saved)
+            assert config.read_text(encoding="utf-8") == "{"
+            config.write_text(saved, encoding="utf-8")
             app = start()
             assert settings() == expected and "固定：false" in status() and "面板：隐藏" in status()
             before = metrics(app.pid)
@@ -292,7 +292,7 @@ def runtime(binary, xvfb, report):
             print(json.dumps(samples, ensure_ascii=False, indent=2))
         except BaseException:
             if log_path.exists():
-                print(log_path.read_text())
+                print(log_path.read_text(encoding="utf-8"))
             raise
         finally:
             for process in processes:
@@ -301,7 +301,7 @@ def runtime(binary, xvfb, report):
                 stop(process)
             display.close()
     report.parent.mkdir(parents=True, exist_ok=True)
-    report.write_text(json.dumps(samples, ensure_ascii=False, indent=2) + "\n")
+    report.write_text(json.dumps(samples, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main():

@@ -202,6 +202,28 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 packaging.validate_entries(entries, expected)
 
+    def test_embedded_plugins_validate_content_not_compressed_encoding(self):
+        platform = "linux-x86_64"
+        files = packaging.portable_files(platform, synthetic_binary(platform))
+        plugin = packaging.DESKTOPS["plugins"][0]
+        name = f"{packaging.NAME}-{packaging.VERSION}/integration/{plugin['archive']}"
+        payload = packaging.plugin_files(plugin)
+        stored = io.BytesIO()
+        with zipfile.ZipFile(stored, "w", compression=zipfile.ZIP_STORED) as archive:
+            for filename, (data, mode) in payload.items():
+                info = zipfile.ZipInfo(filename, (1980, 1, 1, 0, 0, 0))
+                info.create_system = 3
+                info.external_attr = (stat.S_IFREG | mode) << 16
+                archive.writestr(info, data)
+        self.assertNotEqual(stored.getvalue(), files[name][0])
+        files[name] = (stored.getvalue(), 0o644)
+        packaging.verify_archive(self.rewrite(platform, files), platform)
+        filename = next(iter(plugin["files"]))
+        payload[filename] = (b"public fixture corruption", 0o644)
+        files[name] = (packaging.zip_bytes(payload), 0o644)
+        with self.assertRaises(ValueError):
+            packaging.verify_archive(self.rewrite(platform, files), platform)
+
     def test_archive_validation_stays_enabled_under_python_optimization(self):
         self.portables()
         platform = "linux-x86_64"

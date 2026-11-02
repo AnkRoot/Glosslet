@@ -201,12 +201,11 @@ def validate_entries(entries, expected):
             raise ValueError("归档必须是限长、权限正确的普通文件，不能包含链接")
 
 
-def read_archive(path, expected, kind):
-    if path.is_symlink() or not path.is_file():
-        raise ValueError("发布输入必须是普通归档文件")
+def read_archive(data, expected, kind):
+    source = io.BytesIO(data)
     try:
         if kind == "zip":
-            with zipfile.ZipFile(path) as package:
+            with zipfile.ZipFile(source) as package:
                 infos = package.infolist()
                 validate_entries([
                     (info.filename, info.file_size, stat.S_IMODE(info.external_attr >> 16),
@@ -215,7 +214,7 @@ def read_archive(path, expected, kind):
                 ], expected)
                 return {info.filename: package.read(info) for info in infos}
         if kind == "tar":
-            with tarfile.open(path) as package:
+            with tarfile.open(fileobj=source) as package:
                 infos = package.getmembers()
                 validate_entries([
                     (info.name, info.size, info.mode, info.isfile() and not info.issparse() and info.uid == info.gid == 0)
@@ -227,16 +226,30 @@ def read_archive(path, expected, kind):
     raise ValueError("未知归档格式")
 
 
+def verify_plugin(data, plugin):
+    expected = plugin_files(plugin)
+    actual = read_archive(data, expected, "zip")
+    if any(actual[name] != content for name, (content, _) in expected.items()):
+        raise ValueError("插件内容与当前桌面定义不符")
+
+
 def verify_archive(archive, platform):
     if platform not in PLATFORMS:
         raise ValueError("未知发布平台")
     if not archive.exists():
         raise FileNotFoundError(archive)
+    if archive.is_symlink() or not archive.is_file():
+        raise ValueError("发布输入必须是普通归档文件")
     expected = portable_files(platform, b"")
     executable = f"{NAME}-{VERSION}/{NAME}" + (".exe" if platform.startswith("windows-") else "")
-    actual = read_archive(archive, expected, "zip" if platform.startswith("windows-") else "tar")
+    actual = read_archive(archive.read_bytes(), expected, "zip" if platform.startswith("windows-") else "tar")
     verify_binary(actual[executable], platform)
-    if any(actual[name] != data for name, (data, _) in expected.items() if name != executable):
+    plugins = {}
+    if platform.startswith("linux-"):
+        plugins = {f"{NAME}-{VERSION}/integration/{plugin['archive']}": plugin for plugin in DESKTOPS["plugins"]}
+        for name, plugin in plugins.items():
+            verify_plugin(actual[name], plugin)
+    if any(actual[name] != data for name, (data, _) in expected.items() if name != executable and name not in plugins):
         raise ValueError("归档说明、构建标识或桌面资产与当前产品定义不符")
 
 
@@ -259,12 +272,9 @@ def metadata(output):
     if any(not path.is_file() or path.is_symlink() for path in files):
         raise ValueError("发布资产缺失或不是普通文件")
     for plugin in DESKTOPS["plugins"]:
-        expected = plugin_files(plugin)
-        actual = read_archive(output / plugin["archive"], expected, "zip")
-        if any(actual[name] != data for name, (data, _) in expected.items()):
-            raise ValueError("独立插件与当前桌面定义不符")
+        verify_plugin((output / plugin["archive"]).read_bytes(), plugin)
     aur_files = {f"{NAME}-bin/{name}": (b"", 0o644) for name in ("PKGBUILD", ".SRCINFO")}
-    aur_data = read_archive(output / AUR_ARCHIVE, aur_files, "tar")
+    aur_data = read_archive((output / AUR_ARCHIVE).read_bytes(), aur_files, "tar")
     checksums = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     for arch in ("x86_64", "aarch64"):
         digest = checksums[archive_name("linux-" + arch)].encode()
